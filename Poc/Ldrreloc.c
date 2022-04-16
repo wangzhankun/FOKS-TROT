@@ -21,17 +21,15 @@ Abstract:
 
 --*/
 
-
 //
 // Mark a HIGHADJ entry as needing an increment if reprocessing.
 //
-#define LDRP_RELOCATION_INCREMENT   0x1
+#define LDRP_RELOCATION_INCREMENT 0x1
 
 //
 // Mark a HIGHADJ entry as not suitable for reprocessing.
 //
-#define LDRP_RELOCATION_FINAL       0x2
-
+#define LDRP_RELOCATION_FINAL 0x2
 
 /*
 #pragma alloc_text(PAGE,LdrRelocateImage)
@@ -47,8 +45,7 @@ LdrRelocateImage(
     __in PVOID NewSpecificBase,
     __in LDR_RELOCATE_IMAGE_RETURN_TYPE Success,
     __in LDR_RELOCATE_IMAGE_RETURN_TYPE Conflict,
-    __in LDR_RELOCATE_IMAGE_RETURN_TYPE Invalid
-)
+    __in LDR_RELOCATE_IMAGE_RETURN_TYPE Invalid)
 /*++
 
 Routine Description:
@@ -81,7 +78,6 @@ Return Value:
     return LdrRelocateImageWithBias(NewBase, NewSpecificBase, 0, Success, Conflict, Invalid);
 }
 
-
 LDR_RELOCATE_IMAGE_RETURN_TYPE
 LdrRelocateImageWithBias(
     __in PVOID NewBase,
@@ -89,8 +85,7 @@ LdrRelocateImageWithBias(
     __in LONGLONG AdditionalBias,
     __in LDR_RELOCATE_IMAGE_RETURN_TYPE Success,
     __in LDR_RELOCATE_IMAGE_RETURN_TYPE Conflict,
-    __in LDR_RELOCATE_IMAGE_RETURN_TYPE Invalid
-)
+    __in LDR_RELOCATE_IMAGE_RETURN_TYPE Invalid)
 /*++
 
 Routine Description:
@@ -132,12 +127,14 @@ Return Value:
     LDR_RELOCATE_IMAGE_RETURN_TYPE Status;
 
     NtHeaders = RtlImageNtHeader(NewBase);
-    if (NtHeaders == NULL) {
+    if (NtHeaders == NULL)
+    {
         Status = Invalid;
         goto Exit;
     }
 
-    switch (NtHeaders->OptionalHeader.Magic) {
+    switch (NtHeaders->OptionalHeader.Magic)
+    {
 
     case IMAGE_NT_OPTIONAL_HDR32_MAGIC:
 
@@ -162,7 +159,10 @@ Return Value:
     //
 
     NextBlock = (PIMAGE_BASE_RELOCATION)RtlImageDirectoryEntryToData(
-        NewBase, TRUE, IMAGE_DIRECTORY_ENTRY_BASERELOC, &TotalCountBytes);
+        NewBase,
+        TRUE,
+        IMAGE_DIRECTORY_ENTRY_BASERELOC,
+        &TotalCountBytes);
 
     //
     // It is possible for a file to have no relocations, but the relocations
@@ -211,14 +211,12 @@ Exit:
     return Status;
 }
 
-
 PIMAGE_BASE_RELOCATION
 LdrProcessRelocationBlock(
     IN ULONG_PTR VA,
     IN ULONG SizeOfBlock,
     IN PUSHORT NextOffset,
-    IN LONG_PTR Diff
-)
+    IN LONG_PTR Diff)
 {
     PIMAGE_BASE_RELOCATION baseRelocation;
 
@@ -227,24 +225,23 @@ LdrProcessRelocationBlock(
     return baseRelocation;
 }
 
-
 // begin_rebase
 PIMAGE_BASE_RELOCATION
 LdrProcessRelocationBlockLongLong(
     IN ULONG_PTR VA,
     IN ULONG SizeOfBlock,
     IN PUSHORT NextOffset,
-    IN LONGLONG Diff
-)
+    IN LONGLONG Diff)
 {
     PUCHAR FixupVA;
     USHORT Offset;
     LONG Temp;
-    //ULONG Temp32;
+    // ULONG Temp32;
     ULONGLONG Value64;
-    //LONGLONG Temp64;
+    // LONGLONG Temp64;
 
-    while (SizeOfBlock--) {
+    while (SizeOfBlock--)
+    {
 
         Offset = *NextOffset & (USHORT)0xfff;
         FixupVA = (PUCHAR)(VA + Offset);
@@ -253,14 +250,15 @@ LdrProcessRelocationBlockLongLong(
         // Apply the fixups.
         //
 
-        switch ((*NextOffset) >> 12) {
+        switch ((*NextOffset) >> 12)
+        {
 
         case IMAGE_REL_BASED_HIGHLOW:
             //
             // HighLow - (32-bits) relocate the high and low half
             //      of an address.
             //
-            *(LONG UNALIGNED*)FixupVA += (ULONG)Diff;
+            *(LONG UNALIGNED *)FixupVA += (ULONG)Diff;
             break;
 
         case IMAGE_REL_BASED_HIGH:
@@ -282,7 +280,8 @@ LdrProcessRelocationBlockLongLong(
             // If the address has already been relocated then don't
             // process it again now or information will be lost.
             //
-            if (Offset & LDRP_RELOCATION_FINAL) {
+            if (Offset & LDRP_RELOCATION_FINAL)
+            {
                 ++NextOffset;
                 --SizeOfBlock;
                 break;
@@ -418,7 +417,7 @@ LdrProcessRelocationBlockLongLong(
 
         case IMAGE_REL_BASED_DIR64:
 
-            *(ULONGLONG UNALIGNED*)FixupVA += Diff;
+            *(ULONGLONG UNALIGNED *)FixupVA += Diff;
 
             break;
 
@@ -429,7 +428,7 @@ LdrProcessRelocationBlockLongLong(
             Temp = (*(PULONG)FixupVA & 0x3ffffff) << 2;
             Temp += (ULONG)Diff;
             *(PULONG)FixupVA = (*(PULONG)FixupVA & ~0x3ffffff) |
-                ((Temp >> 2) & 0x3ffffff);
+                               ((Temp >> 2) & 0x3ffffff);
 
             break;
 

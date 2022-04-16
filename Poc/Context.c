@@ -594,7 +594,7 @@ NTSTATUS PocUpdateNameInStreamContext(
 
 VOID PocUpdateFlagInStreamContext(
     IN PPOC_STREAM_CONTEXT StreamContext,
-    IN ULONG Flag)
+    IN LONGLONG Flag)
 {
     if (NULL == StreamContext)
     {

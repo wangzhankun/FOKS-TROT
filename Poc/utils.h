@@ -15,7 +15,7 @@ ULONG PocQueryEndOfFileInfo(
 NTSTATUS PocSetEndOfFileInfo(
 	IN PFLT_INSTANCE Instance, 
 	IN PFILE_OBJECT FileObject, 
-	IN ULONG FileSize);
+	IN LONGLONG FileSize);
 
 USHORT PocQueryVolumeSectorSize(IN PFLT_VOLUME Volume);
 

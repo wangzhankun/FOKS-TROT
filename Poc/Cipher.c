@@ -5,7 +5,6 @@
 
 AES_INIT_VARIABLES AesInitVar;
 
-
 NTSTATUS PocInitAesECBKey()
 {
 	NTSTATUS Status = STATUS_UNSUCCESSFUL;
@@ -13,10 +12,9 @@ NTSTATUS PocInitAesECBKey()
 	ULONG cbData = 0, cbKeyObject = 0;
 
 	UCHAR rgbAES128Key[] =
-	{
-		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-		0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
-	};
+		{
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+			0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
 
 	RtlZeroMemory(&AesInitVar, sizeof(AES_INIT_VARIABLES));
 
@@ -27,8 +25,29 @@ NTSTATUS PocInitAesECBKey()
 		PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocInitAesECBKey->BCryptOpenAlgorithmProvider failed. Status = 0x%x.\n", Status));
 		goto ERROR;
 	}
-	
-	Status = BCryptGetProperty(AesInitVar.hAesAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&cbKeyObject, sizeof(ULONG), &cbData, 0);
+
+	/**
+	 * NTSTATUS BCryptGetProperty(
+		[in]  BCRYPT_HANDLE hObject,
+		[in]  LPCWSTR       pszProperty,
+		[out] PUCHAR        pbOutput,
+		[in]  ULONG         cbOutput,
+		[out] ULONG         *pcbResult,
+		[in]  ULONG         dwFlags
+		);
+	 * [in] A handle that represents the CNG object to obtain the property value for.
+	 * [in] A pointer to a null-terminated Unicode string that contains the name of the property to retrieve.
+	 * [out] The address of a buffer that receives the property value. The cbOutput parameter contains the size of this buffer.
+	 * [in] The size, in bytes, of the pbOutput buffer.
+	 * [in] A pointer to a ULONG variable that receives the number of bytes that were copied to the pbOutput buffer.
+	 * [in] A set of flags that modify the behavior of this function.
+	*/
+	Status = BCryptGetProperty(AesInitVar.hAesAlg,
+							   BCRYPT_OBJECT_LENGTH,
+							   (PUCHAR)&cbKeyObject,
+							   sizeof(ULONG),
+							   &cbData,
+							   0);
 
 	if (!NT_SUCCESS(Status))
 	{
@@ -85,12 +104,10 @@ ERROR:
 
 	AesInitVar.Flag = FALSE;
 
-
 EXIT:
 
 	return Status;
 }
-
 
 VOID PocAesCleanup()
 {
@@ -120,14 +137,13 @@ VOID PocAesCleanup()
 	AesInitVar.Flag = FALSE;
 }
 
-
 NTSTATUS PocAesECBEncrypt(
-	IN PCHAR InBuffer, 
-	IN ULONG InBufferSize, 
-	IN OUT PCHAR InOutBuffer, 
+	IN PCHAR InBuffer,
+	IN ULONG InBufferSize,
+	IN OUT PCHAR InOutBuffer,
 	IN OUT PULONG LengthReturned)
 {
-	//LengthReturned是复用的，在加密时，既作为InOutBuffer的内存大小输入，也作为加密后密文大小输出
+	// LengthReturned是复用的，在加密时，既作为InOutBuffer的内存大小输入，也作为加密后密文大小输出
 
 	if (!AesInitVar.Flag)
 	{
@@ -147,12 +163,20 @@ NTSTATUS PocAesECBEncrypt(
 		return STATUS_INVALID_PARAMETER;
 	}
 
-
 	NTSTATUS Status = STATUS_UNSUCCESSFUL;
-	
 
-	Status = BCryptEncrypt(AesInitVar.hKey, (PUCHAR)InBuffer, InBufferSize,
-		NULL, NULL, 0, (PUCHAR)InOutBuffer, *LengthReturned, LengthReturned, 0);
+	Status = BCryptEncrypt(AesInitVar.hKey,		//[in.out] BCRYPT_KEY_HANDLE  The handle of the key to use to encrypt the data.
+						   (PUCHAR)InBuffer,	//[in] PUCHAR The address of a buffer that contains the plaintext to be encrypted.
+						   InBufferSize,		//[in] ULONG The number of bytes in the pbInput buffer to encrypt.
+						   NULL,				//[in, optional] pPaddingInfo
+						   NULL,				//[in, out, optional] pbIV
+						   0,					//[in] cbIV
+						   (PUCHAR)InOutBuffer, //[out, optional] pbOutput The address of the buffer that receives the ciphertext produced by this function.
+						   // The cbOutput parameter contains the size of this buffer. If this parameter is NULL, the BCryptEncrypt function
+						   // calculates the size needed for the ciphertext of the data passed in the pbInput parameter.
+						   *LengthReturned, //[in] cbOutput The size, in bytes, of the pbOutput buffer. This parameter is ignored if the pbOutput parameter is NULL.
+						   LengthReturned,	// [out] pcbResult A pointer to a ULONG variable that receives the number of bytes copied to the pbOutput buffer
+						   0);
 
 	if (STATUS_SUCCESS != Status)
 	{
@@ -162,11 +186,10 @@ NTSTATUS PocAesECBEncrypt(
 	return Status;
 }
 
-
 NTSTATUS PocAesECBDecrypt(
-	IN PCHAR InBuffer, 
-	IN ULONG InBufferSize, 
-	IN OUT PCHAR InOutBuffer, 
+	IN PCHAR InBuffer,
+	IN ULONG InBufferSize,
+	IN OUT PCHAR InOutBuffer,
 	IN OUT PULONG LengthReturned)
 {
 
@@ -188,12 +211,18 @@ NTSTATUS PocAesECBDecrypt(
 		return STATUS_INVALID_PARAMETER;
 	}
 
-
 	NTSTATUS Status = STATUS_UNSUCCESSFUL;
 
-
-	Status = BCryptDecrypt(AesInitVar.hKey, (PUCHAR)InBuffer, (ULONG)InBufferSize,
-		NULL, NULL, 0, (PUCHAR)InOutBuffer, *LengthReturned, LengthReturned, 0);
+	Status = BCryptDecrypt(AesInitVar.hKey,		//[in, out] hKey The handle of the key to use to decrypt the data.
+						   (PUCHAR)InBuffer,	//[in] pbInput The address of a buffer that contains the ciphertext to be decrypted.
+						   (ULONG)InBufferSize, //[in] ULONG cbInput The number of bytes in the pbInput buffer to decrypt.
+						   NULL,
+						   NULL,
+						   0,
+						   (PUCHAR)InOutBuffer, //[out, optional] PUCHAR pbOutput The address of the buffer that receives the plaintext produced by this function.
+						   *LengthReturned,		// [in] ULONG cbOutput The size, in bytes, of the pbOutput buffer. This parameter is ignored if the pbOutput parameter is NULL.
+						   LengthReturned,		//[out] pcbResult A pointer to a ULONG variable that receives the number of bytes copied to the pbOutput buffer
+						   0);
 
 	if (STATUS_SUCCESS != Status)
 	{
@@ -203,10 +232,9 @@ NTSTATUS PocAesECBDecrypt(
 	return Status;
 }
 
-
 NTSTATUS PocAesECBEncrypt_CiphertextStealing(
-	IN PCHAR InBuffer, 
-	IN ULONG InBufferSize, 
+	IN PCHAR InBuffer,
+	IN ULONG InBufferSize,
 	IN OUT PCHAR InOutBuffer)
 {
 	if (!AesInitVar.Flag)
@@ -233,16 +261,15 @@ NTSTATUS PocAesECBEncrypt_CiphertextStealing(
 		return STATUS_UNSUCCESSFUL;
 	}
 
-
 	NTSTATUS Status = STATUS_UNSUCCESSFUL;
 
 	ULONG TailLength = InBufferSize % AES_BLOCK_SIZE;
 	ULONG LengthReturned = 0;
 	ULONG Pn_1Offset = 0, PnOffset = 0;
 
-	CHAR Pn[AES_BLOCK_SIZE] = { 0 };
-	CHAR Cn_1[AES_BLOCK_SIZE] = { 0 };
-	CHAR Cpadding[AES_BLOCK_SIZE] = { 0 };
+	CHAR Pn[AES_BLOCK_SIZE] = {0};
+	CHAR Cn_1[AES_BLOCK_SIZE] = {0};
+	CHAR Cpadding[AES_BLOCK_SIZE] = {0};
 
 	PCHAR AlignedBuffer = NULL;
 
@@ -261,9 +288,9 @@ NTSTATUS PocAesECBEncrypt_CiphertextStealing(
 
 	LengthReturned = InBufferSize - TailLength;
 	Status = PocAesECBEncrypt(
-		AlignedBuffer, 
-		InBufferSize - TailLength, 
-		InOutBuffer, 
+		AlignedBuffer,
+		InBufferSize - TailLength,
+		InOutBuffer,
 		&LengthReturned);
 
 	if (STATUS_SUCCESS != Status)
@@ -275,14 +302,12 @@ NTSTATUS PocAesECBEncrypt_CiphertextStealing(
 	Pn_1Offset = InBufferSize - TailLength - AES_BLOCK_SIZE;
 	PnOffset = Pn_1Offset + AES_BLOCK_SIZE;
 
-	//InOutBuffer + Pn_1Offset == Cn
+	// InOutBuffer + Pn_1Offset == Cn
 	RtlMoveMemory(InOutBuffer + PnOffset, InOutBuffer + Pn_1Offset, TailLength);
 
 	RtlMoveMemory(Cpadding, InOutBuffer + Pn_1Offset + TailLength, AES_BLOCK_SIZE - TailLength);
 
 	RtlZeroMemory(InOutBuffer + Pn_1Offset, AES_BLOCK_SIZE);
-
-	
 
 	RtlMoveMemory(Pn, InBuffer + PnOffset, TailLength);
 	RtlMoveMemory(Pn + TailLength, Cpadding, AES_BLOCK_SIZE - TailLength);
@@ -315,7 +340,6 @@ EXIT:
 	return Status;
 }
 
-
 NTSTATUS PocAesECBDecrypt_CiphertextStealing(
 	IN PCHAR InBuffer,
 	IN ULONG InBufferSize,
@@ -345,16 +369,15 @@ NTSTATUS PocAesECBDecrypt_CiphertextStealing(
 		return STATUS_UNSUCCESSFUL;
 	}
 
-
 	NTSTATUS Status = STATUS_UNSUCCESSFUL;
 
 	ULONG TailLength = InBufferSize % AES_BLOCK_SIZE;
 	ULONG LengthReturned = 0;
 	ULONG Cn_1Offset = 0, CnOffset = 0;
 
-	CHAR Cn[AES_BLOCK_SIZE] = { 0 };
-	CHAR Pn_1[AES_BLOCK_SIZE] = { 0 };
-	CHAR Cpadding[AES_BLOCK_SIZE] = { 0 };
+	CHAR Cn[AES_BLOCK_SIZE] = {0};
+	CHAR Pn_1[AES_BLOCK_SIZE] = {0};
+	CHAR Cpadding[AES_BLOCK_SIZE] = {0};
 
 	PCHAR AlignedBuffer = NULL;
 
@@ -387,14 +410,12 @@ NTSTATUS PocAesECBDecrypt_CiphertextStealing(
 	Cn_1Offset = InBufferSize - TailLength - AES_BLOCK_SIZE;
 	CnOffset = Cn_1Offset + AES_BLOCK_SIZE;
 
-	//InOutBuffer + Cn_1Offset == Pn
+	// InOutBuffer + Cn_1Offset == Pn
 	RtlMoveMemory(InOutBuffer + CnOffset, InOutBuffer + Cn_1Offset, TailLength);
 
 	RtlMoveMemory(Cpadding, InOutBuffer + Cn_1Offset + TailLength, AES_BLOCK_SIZE - TailLength);
 
 	RtlZeroMemory(InOutBuffer + Cn_1Offset, AES_BLOCK_SIZE);
-
-
 
 	RtlMoveMemory(Cn, InBuffer + CnOffset, TailLength);
 	RtlMoveMemory(Cn + TailLength, Cpadding, AES_BLOCK_SIZE - TailLength);
@@ -427,7 +448,6 @@ EXIT:
 	return Status;
 }
 
-
 NTSTATUS PocStreamModeEncrypt(
 	IN PCHAR InBuffer,
 	IN ULONG InBufferSize,
@@ -446,7 +466,7 @@ NTSTATUS PocStreamModeEncrypt(
 		return STATUS_INVALID_PARAMETER;
 	}
 
-	for (ULONG i = 0; i < InBufferSize; i++) 
+	for (ULONG i = 0; i < InBufferSize; i++)
 	{
 		*(InOutBuffer + i) = *(InBuffer + i) ^ 0x77;
 	}
@@ -454,10 +474,9 @@ NTSTATUS PocStreamModeEncrypt(
 	return STATUS_SUCCESS;
 }
 
-
 NTSTATUS PocStreamModeDecrypt(
 	IN PCHAR InBuffer,
-	IN ULONG InBufferSize,
+	IN LONGLONG InBufferSize,
 	IN OUT PCHAR InOutBuffer)
 {
 
@@ -473,7 +492,7 @@ NTSTATUS PocStreamModeDecrypt(
 		return STATUS_INVALID_PARAMETER;
 	}
 
-	for (ULONG i = 0; i < InBufferSize; i++)
+	for (LONGLONG i = 0; i < InBufferSize; i++)
 	{
 		*(InOutBuffer + i) = *(InBuffer + i) ^ 0x77;
 	}
@@ -481,12 +500,11 @@ NTSTATUS PocStreamModeDecrypt(
 	return STATUS_SUCCESS;
 }
 
-
 NTSTATUS PocComputeHash(
-	IN PUCHAR Data, 
-	IN ULONG DataLength, 
-	IN OUT PUCHAR* DataDigestPointer, 
-	IN OUT ULONG* DataDigestLengthPointer)
+	IN PUCHAR Data,
+	IN ULONG DataLength,
+	IN OUT PUCHAR *DataDigestPointer,
+	IN OUT ULONG *DataDigestLengthPointer)
 {
 
 	NTSTATUS Status = 0;
@@ -502,8 +520,6 @@ NTSTATUS PocComputeHash(
 	*DataDigestPointer = NULL;
 	*DataDigestLengthPointer = 0;
 
-
-
 	Status = BCryptOpenAlgorithmProvider(
 		&HashAlgHandle,
 		BCRYPT_SHA256_ALGORITHM,
@@ -512,12 +528,9 @@ NTSTATUS PocComputeHash(
 	if (!NT_SUCCESS(Status))
 	{
 		PT_DBG_PRINT(PTDBG_TRACE_ROUTINES,
-			("%s->BCryptOpenAlgorithmProvider failed. Status = 0x%x.\n", __FUNCTION__, Status));
+					 ("%s->BCryptOpenAlgorithmProvider failed. Status = 0x%x.\n", __FUNCTION__, Status));
 		goto cleanup;
 	}
-
-
-
 
 	Status = BCryptGetProperty(
 		HashAlgHandle,
@@ -529,10 +542,9 @@ NTSTATUS PocComputeHash(
 	if (!NT_SUCCESS(Status))
 	{
 		PT_DBG_PRINT(PTDBG_TRACE_ROUTINES,
-			("%s->BCryptGetProperty failed. Status = 0x%x.\n", __FUNCTION__, Status));
+					 ("%s->BCryptGetProperty failed. Status = 0x%x.\n", __FUNCTION__, Status));
 		goto cleanup;
 	}
-
 
 	HashDigest = (PUCHAR)ExAllocatePoolWithTag(PagedPool, HashDigestLength, READ_BUFFER_TAG);
 
@@ -540,13 +552,11 @@ NTSTATUS PocComputeHash(
 	{
 		Status = STATUS_NO_MEMORY;
 		PT_DBG_PRINT(PTDBG_TRACE_ROUTINES,
-			("%s->ExAllocatePoolWithTag failed. Status = 0x%x.\n", __FUNCTION__, Status));
+					 ("%s->ExAllocatePoolWithTag failed. Status = 0x%x.\n", __FUNCTION__, Status));
 		goto cleanup;
 	}
 
 	RtlZeroMemory(HashDigest, HashDigestLength);
-
-
 
 	Status = BCryptCreateHash(
 		HashAlgHandle,
@@ -559,11 +569,9 @@ NTSTATUS PocComputeHash(
 	if (!NT_SUCCESS(Status))
 	{
 		PT_DBG_PRINT(PTDBG_TRACE_ROUTINES,
-			("%s->BCryptCreateHash failed. Status = 0x%x.\n", __FUNCTION__, Status));
+					 ("%s->BCryptCreateHash failed. Status = 0x%x.\n", __FUNCTION__, Status));
 		goto cleanup;
 	}
-
-
 
 	Status = BCryptHashData(
 		HashHandle,
@@ -573,11 +581,9 @@ NTSTATUS PocComputeHash(
 	if (!NT_SUCCESS(Status))
 	{
 		PT_DBG_PRINT(PTDBG_TRACE_ROUTINES,
-			("%s->BCryptHashData failed. Status = 0x%x.\n", __FUNCTION__, Status));
+					 ("%s->BCryptHashData failed. Status = 0x%x.\n", __FUNCTION__, Status));
 		goto cleanup;
 	}
-
-
 
 	Status = BCryptFinishHash(
 		HashHandle,
@@ -587,7 +593,7 @@ NTSTATUS PocComputeHash(
 	if (!NT_SUCCESS(Status))
 	{
 		PT_DBG_PRINT(PTDBG_TRACE_ROUTINES,
-			("%s->BCryptFinishHash failed. Status = 0x%x.\n", __FUNCTION__, Status));
+					 ("%s->BCryptFinishHash failed. Status = 0x%x.\n", __FUNCTION__, Status));
 		goto cleanup;
 	}
 

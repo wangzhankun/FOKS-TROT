@@ -8,13 +8,11 @@
 #include "filefuncs.h"
 #include "process.h"
 
-
 FLT_PREOP_CALLBACK_STATUS
 PocPreReadOperation(
     _Inout_ PFLT_CALLBACK_DATA Data,
     _In_ PCFLT_RELATED_OBJECTS FltObjects,
-    _Flt_CompletionContext_Outptr_ PVOID* CompletionContext
-)
+    _Flt_CompletionContext_Outptr_ PVOID *CompletionContext)
 {
     UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
@@ -22,7 +20,7 @@ PocPreReadOperation(
 
     NTSTATUS Status;
 
-    WCHAR ProcessName[POC_MAX_NAME_LENGTH] = { 0 };
+    WCHAR ProcessName[POC_MAX_NAME_LENGTH] = {0};
 
     PPOC_STREAM_CONTEXT StreamContext = NULL;
     BOOLEAN ContextCreated = FALSE;
@@ -30,7 +28,9 @@ PocPreReadOperation(
     BOOLEAN NonCachedIo = FALSE;
     BOOLEAN PagingIo = FALSE;
 
-    ULONG StartingVbo = 0, ByteCount = 0;
+    // LONGLONG StartingVbo = 0, ByteCount = 0;
+    LONGLONG StartingVbo = 0;
+    ULONG ByteCount = 0;
 
     PCHAR NewBuffer = NULL;
     PMDL NewMdl = NULL;
@@ -42,13 +42,11 @@ PocPreReadOperation(
     NonCachedIo = BooleanFlagOn(Data->Iopb->IrpFlags, IRP_NOCACHE);
     PagingIo = BooleanFlagOn(Data->Iopb->IrpFlags, IRP_PAGING_IO);
 
-
     if (0 == ByteCount)
     {
         Status = FLT_PREOP_SUCCESS_NO_CALLBACK;
         goto ERROR;
     }
-
 
     Status = PocFindOrCreateStreamContext(
         Data->Iopb->TargetInstance,
@@ -59,12 +57,12 @@ PocPreReadOperation(
 
     if (STATUS_SUCCESS != Status)
     {
-        if (STATUS_NOT_FOUND != Status && !FsRtlIsPagingFile(Data->Iopb->TargetFileObject))      
+        if (STATUS_NOT_FOUND != Status && !FsRtlIsPagingFile(Data->Iopb->TargetFileObject))
         /*
         * 说明不是目标扩展文件，在Create中没有创建StreamContext，不认为是个错误
         * 或者是一个Paging file，这里会返回0xc00000bb，
         * 原因是Fcb->Header.Flags2, FSRTL_FLAG2_SUPPORTS_FILTER_CONTEXTS被清掉了
-        * 
+        *
         //
         //  To make FAT match the present functionality of NTFS, disable
         //  stream contexts on paging files
@@ -77,10 +75,10 @@ PocPreReadOperation(
         */
         {
             PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("%s->PocFindOrCreateStreamContext failed. Status = 0x%x.\n",
-                __FUNCTION__,
-                Status));
+                                                __FUNCTION__,
+                                                Status));
         }
-        
+
         Status = FLT_PREOP_SUCCESS_NO_CALLBACK;
         goto ERROR;
     }
@@ -89,17 +87,14 @@ PocPreReadOperation(
 
     if (!StreamContext->IsCipherText)
     {
-        //PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPreReadOperation->leave. File is plaintext.\n"));
+        // PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPreReadOperation->leave. File is plaintext.\n"));
         Status = FLT_PREOP_SUCCESS_NO_CALLBACK;
         goto ERROR;
     }
 
+    StartingVbo = Data->Iopb->Parameters.Read.ByteOffset.QuadPart;
 
-    
-
-    StartingVbo = Data->Iopb->Parameters.Read.ByteOffset.LowPart;
-
-    if (StartingVbo >= StreamContext->FileSize)
+    if (StartingVbo >= StreamContext->FileSize.QuadPart)
     {
         PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPreReadOperation->%ws read end of file.\n", ProcessName));
         Data->IoStatus.Status = STATUS_END_OF_FILE;
@@ -109,13 +104,13 @@ PocPreReadOperation(
         goto ERROR;
     }
 
-    if (!NonCachedIo && StartingVbo + ByteCount > StreamContext->FileSize)
+    if (!NonCachedIo && StartingVbo + ByteCount > StreamContext->FileSize.QuadPart)
     {
-        PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPreReadOperation->%ws cachedio read end of file Length = %u. NewLength = %u\n", 
-            ProcessName, 
-            Data->Iopb->Parameters.Read.Length,
-            StreamContext->FileSize - StartingVbo));
-        Data->Iopb->Parameters.Read.Length = StreamContext->FileSize - StartingVbo;
+        PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPreReadOperation->%ws cachedio read end of file Length = %u. NewLength = %u\n",
+                                            ProcessName,
+                                            Data->Iopb->Parameters.Read.Length,
+                                            StreamContext->FileSize.QuadPart - StartingVbo));
+        Data->Iopb->Parameters.Read.Length = StreamContext->FileSize.LowPart - LONGLONG2ULONG(StartingVbo);
         FltSetCallbackDataDirty(Data);
     }
 
@@ -132,15 +127,13 @@ PocPreReadOperation(
 
     RtlZeroMemory(SwapBufferContext, sizeof(POC_SWAP_BUFFER_CONTEXT));
 
-    if (FltObjects->FileObject->SectionObjectPointer
-        == StreamContext->ShadowSectionObjectPointers)
+    if (FltObjects->FileObject->SectionObjectPointer == StreamContext->ShadowSectionObjectPointers)
     {
         SwapBufferContext->StreamContext = StreamContext;
         *CompletionContext = SwapBufferContext;
         Status = FLT_PREOP_SUCCESS_WITH_CALLBACK;
         goto EXIT;
     }
-
 
     if (NonCachedIo && StreamContext->IsCipherText)
     {
@@ -156,7 +149,6 @@ PocPreReadOperation(
         }
 
         RtlZeroMemory(NewBuffer, ByteCount);
-
 
         if (FlagOn(Data->Flags, FLTFL_CALLBACK_DATA_IRP_OPERATION))
         {
@@ -188,7 +180,6 @@ PocPreReadOperation(
         goto EXIT;
     }
 
-        
     SwapBufferContext->StreamContext = StreamContext;
     *CompletionContext = SwapBufferContext;
     Status = FLT_PREOP_SUCCESS_WITH_CALLBACK;
@@ -225,14 +216,12 @@ EXIT:
     return Status;
 }
 
-
 FLT_POSTOP_CALLBACK_STATUS
 PocPostReadOperation(
     _Inout_ PFLT_CALLBACK_DATA Data,
     _In_ PCFLT_RELATED_OBJECTS FltObjects,
     _In_opt_ PVOID CompletionContext,
-    _In_ FLT_POST_OPERATION_FLAGS Flags
-)
+    _In_ FLT_POST_OPERATION_FLAGS Flags)
 {
     UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
@@ -247,13 +236,15 @@ PocPostReadOperation(
     PPOC_SWAP_BUFFER_CONTEXT SwapBufferContext = NULL;
     PPOC_STREAM_CONTEXT StreamContext = NULL;
 
-    ULONG StartingVbo = 0, LengthReturned = 0, FileSize = 0;
+    LONGLONG StartingVbo = 0;
+    ULONG LengthReturned = 0;
+    LONGLONG FileSize = 0;
     BOOLEAN NonCachedIo = FALSE, PagingIo = FALSE;
 
     PCHAR OrigBuffer = NULL, NewBuffer = NULL;
     PMDL NewMdl = NULL;
 
-    LARGE_INTEGER byteOffset = { 0 };
+    LARGE_INTEGER byteOffset = {0};
     ULONG readLength = 0;
     PCHAR outReadBuffer = NULL;
     ULONG bytesRead = 0;
@@ -263,21 +254,20 @@ PocPostReadOperation(
 
     PPOC_VOLUME_CONTEXT VolumeContext = NULL;
 
-    WCHAR ProcessName[POC_MAX_NAME_LENGTH] = { 0 };
+    WCHAR ProcessName[POC_MAX_NAME_LENGTH] = {0};
 
     SwapBufferContext = CompletionContext;
     StreamContext = SwapBufferContext->StreamContext;
 
-    StartingVbo = Data->Iopb->Parameters.Read.ByteOffset.LowPart;
-    FileSize = StreamContext->FileSize;
+    StartingVbo = Data->Iopb->Parameters.Read.ByteOffset.QuadPart;
+    FileSize = StreamContext->FileSize.QuadPart;
 
     NonCachedIo = BooleanFlagOn(Data->Iopb->IrpFlags, IRP_NOCACHE);
     PagingIo = BooleanFlagOn(Data->Iopb->IrpFlags, IRP_PAGING_IO);
 
-
     if (STATUS_SUCCESS == Data->IoStatus.Status)
     {
-        if (StartingVbo + Data->IoStatus.Information > FileSize)
+        if ((ULONG_PTR)StartingVbo + Data->IoStatus.Information > (ULONG_PTR)FileSize)
         {
             Data->IoStatus.Information = FileSize - StartingVbo;
         }
@@ -288,48 +278,42 @@ PocPostReadOperation(
         goto EXIT;
     }
 
-
-
-    if (FltObjects->FileObject->SectionObjectPointer 
-        == StreamContext->ShadowSectionObjectPointers)
+    if (FltObjects->FileObject->SectionObjectPointer == StreamContext->ShadowSectionObjectPointers)
     {
         PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPostReadOperation->Don't decrypt ciphertext cache map.\n"));
         Status = FLT_POSTOP_FINISHED_PROCESSING;
         goto EXIT;
     }
 
-
     if (NonCachedIo && StreamContext->IsCipherText)
     {
-        LengthReturned = (ULONG)Data->IoStatus.Information;
+        LengthReturned = LONGLONG2ULONG(Data->IoStatus.Information);
 
         NewBuffer = SwapBufferContext->NewBuffer;
         NewMdl = SwapBufferContext->NewMdl;
 
-        if (Data->Iopb->Parameters.Read.MdlAddress != NULL) 
+        if (Data->Iopb->Parameters.Read.MdlAddress != NULL)
         {
 
             FLT_ASSERT(((PMDL)Data->Iopb->Parameters.Read.MdlAddress)->Next == NULL);
 
             OrigBuffer = MmGetSystemAddressForMdlSafe(Data->Iopb->Parameters.Read.MdlAddress,
-                NormalPagePriority | MdlMappingNoExecute);
+                                                      NormalPagePriority | MdlMappingNoExecute);
 
-            if (OrigBuffer == NULL) 
+            if (OrigBuffer == NULL)
             {
 
                 PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPostReadOperation->Failed to get system address for MDL1: %p\n",
-                    Data->Iopb->Parameters.Read.MdlAddress));
+                                                    Data->Iopb->Parameters.Read.MdlAddress));
 
                 Data->IoStatus.Status = STATUS_INSUFFICIENT_RESOURCES;
                 Data->IoStatus.Information = 0;
                 Status = FLT_POSTOP_FINISHED_PROCESSING;
                 goto EXIT;
-
             }
-
         }
         else if (FlagOn(Data->Flags, FLTFL_CALLBACK_DATA_SYSTEM_BUFFER) ||
-            FlagOn(Data->Flags, FLTFL_CALLBACK_DATA_FAST_IO_OPERATION)) 
+                 FlagOn(Data->Flags, FLTFL_CALLBACK_DATA_FAST_IO_OPERATION))
         {
             OrigBuffer = Data->Iopb->Parameters.Read.ReadBuffer;
         }
@@ -349,22 +333,19 @@ PocPostReadOperation(
             }
 
             OrigBuffer = MmGetSystemAddressForMdlSafe(Data->Iopb->Parameters.Read.MdlAddress,
-                NormalPagePriority | MdlMappingNoExecute);
+                                                      NormalPagePriority | MdlMappingNoExecute);
 
             if (OrigBuffer == NULL)
             {
                 PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPostReadOperation->Failed to get system address for MDL2: %p\n",
-                    Data->Iopb->Parameters.Read.MdlAddress));
+                                                    Data->Iopb->Parameters.Read.MdlAddress));
 
                 Data->IoStatus.Status = STATUS_INSUFFICIENT_RESOURCES;
                 Data->IoStatus.Information = 0;
                 Status = FLT_POSTOP_FINISHED_PROCESSING;
                 goto EXIT;
-
             }
-
         }
-
 
         try
         {
@@ -372,20 +353,19 @@ PocPostReadOperation(
             if (FileSize < AES_BLOCK_SIZE)
             {
                 /*
-                * 文件小于一个块，采用流式解密
-                */
+                 * 文件小于一个块，采用流式解密
+                 */
                 PocStreamModeDecrypt(NewBuffer, LengthReturned, OrigBuffer);
-
             }
-            else if ((FileSize > StartingVbo + LengthReturned) && 
-                    (FileSize - (StartingVbo + LengthReturned) < AES_BLOCK_SIZE))
+            else if ((FileSize > StartingVbo + LengthReturned) &&
+                     (FileSize - (StartingVbo + LengthReturned) < AES_BLOCK_SIZE))
             {
                 /*
-                * 当文件大于一个块，Cache Manager将数据分多次读入缓冲，或者其他以NonCachedIo形式
-                * 最后一次读的数据小于一个块的情况下，现在在倒数第二个块做一下处理
-                */
+                 * 当文件大于一个块，Cache Manager将数据分多次读入缓冲，或者其他以NonCachedIo形式
+                 * 最后一次读的数据小于一个块的情况下，现在在倒数第二个块做一下处理
+                 */
 
-                byteOffset.LowPart = StartingVbo + LengthReturned;
+                byteOffset.QuadPart = StartingVbo + LengthReturned;
                 readLength = AES_BLOCK_SIZE;
 
                 Status = PocReadFileNoCache(
@@ -406,7 +386,7 @@ PocPostReadOperation(
                     goto EXIT;
                 }
 
-                bytesRead = FileSize - (StartingVbo + LengthReturned);
+                bytesRead = LONGLONG2ULONG(FileSize - (StartingVbo + LengthReturned));
 
                 TempNewBuffer = ExAllocatePoolWithTag(NonPagedPool, LengthReturned + bytesRead, READ_BUFFER_TAG);
 
@@ -421,7 +401,7 @@ PocPostReadOperation(
 
                 RtlZeroMemory(TempNewBuffer, LengthReturned + bytesRead);
 
-                TempOrigBuffer= ExAllocatePoolWithTag(NonPagedPool, LengthReturned + bytesRead, READ_BUFFER_TAG);
+                TempOrigBuffer = ExAllocatePoolWithTag(NonPagedPool, LengthReturned + bytesRead, READ_BUFFER_TAG);
 
                 if (NULL == TempOrigBuffer)
                 {
@@ -434,11 +414,12 @@ PocPostReadOperation(
 
                 RtlZeroMemory(TempOrigBuffer, LengthReturned + bytesRead);
 
-
                 RtlMoveMemory(TempNewBuffer, NewBuffer, LengthReturned);
                 RtlMoveMemory(TempNewBuffer + LengthReturned, outReadBuffer, bytesRead);
 
-                Status = PocAesECBDecrypt_CiphertextStealing(TempNewBuffer, LengthReturned + bytesRead, TempOrigBuffer);
+                Status = PocAesECBDecrypt_CiphertextStealing(TempNewBuffer,
+                                                             LONGLONG2ULONG(LengthReturned + bytesRead),
+                                                             TempOrigBuffer);
 
                 if (STATUS_SUCCESS != Status)
                 {
@@ -450,15 +431,14 @@ PocPostReadOperation(
                 }
 
                 RtlMoveMemory(OrigBuffer, TempOrigBuffer, LengthReturned);
-
             }
-            else if (FileSize > AES_BLOCK_SIZE && 
-                    LengthReturned < AES_BLOCK_SIZE)
+            else if (FileSize > AES_BLOCK_SIZE &&
+                     LengthReturned < AES_BLOCK_SIZE)
             {
                 /*
-                * 当文件大于一个块，Cache Manager将数据分多次读入缓冲，或者其他以NonCachedIo形式
-                * 最后一次读的数据小于一个块时
-                */
+                 * 当文件大于一个块，Cache Manager将数据分多次读入缓冲，或者其他以NonCachedIo形式
+                 * 最后一次读的数据小于一个块时
+                 */
 
                 Status = FltGetVolumeContext(FltObjects->Filter, FltObjects->Volume, &VolumeContext);
 
@@ -471,7 +451,7 @@ PocPostReadOperation(
                     goto EXIT;
                 }
 
-                byteOffset.LowPart = StartingVbo - VolumeContext->SectorSize;
+                byteOffset.QuadPart = StartingVbo - VolumeContext->SectorSize;
                 readLength = VolumeContext->SectorSize;
 
                 if (NULL != VolumeContext)
@@ -529,7 +509,9 @@ PocPostReadOperation(
                 RtlMoveMemory(TempNewBuffer, outReadBuffer, bytesRead);
                 RtlMoveMemory(TempNewBuffer + bytesRead, NewBuffer, LengthReturned);
 
-                Status = PocAesECBDecrypt_CiphertextStealing(TempNewBuffer, LengthReturned + bytesRead, TempOrigBuffer);
+                Status = PocAesECBDecrypt_CiphertextStealing(TempNewBuffer,
+                                                             LONGLONG2ULONG(LengthReturned + bytesRead),
+                                                             TempOrigBuffer);
 
                 if (STATUS_SUCCESS != Status)
                 {
@@ -541,15 +523,16 @@ PocPostReadOperation(
                 }
 
                 RtlMoveMemory(OrigBuffer, TempOrigBuffer + bytesRead, LengthReturned);
-
             }
             else if (LengthReturned % AES_BLOCK_SIZE != 0)
             {
                 /*
-                * 当需要读的数据大于一个块时，且和块大小不对齐时，这里用密文挪用的方式，不需要修改文件大小
-                */
+                 * 当需要读的数据大于一个块时，且和块大小不对齐时，这里用密文挪用的方式，不需要修改文件大小
+                 */
 
-                Status = PocAesECBDecrypt_CiphertextStealing(NewBuffer, LengthReturned, OrigBuffer);
+                Status = PocAesECBDecrypt_CiphertextStealing(NewBuffer,
+                                                             LONGLONG2ULONG(LengthReturned),
+                                                             OrigBuffer);
 
                 if (STATUS_SUCCESS != Status)
                 {
@@ -559,15 +542,17 @@ PocPostReadOperation(
                     Status = FLT_POSTOP_FINISHED_PROCESSING;
                     goto EXIT;
                 }
-
             }
             else
             {
                 /*
-                * 当需要读的数据本身就和块大小对齐时，直接解密
-                */
+                 * 当需要读的数据本身就和块大小对齐时，直接解密
+                 */
 
-                Status = PocAesECBDecrypt(NewBuffer, LengthReturned, OrigBuffer, &LengthReturned);
+                Status = PocAesECBDecrypt(NewBuffer,
+                                          LONGLONG2ULONG(LengthReturned),
+                                          OrigBuffer,
+                                          &LengthReturned);
 
                 if (STATUS_SUCCESS != Status)
                 {
@@ -577,10 +562,7 @@ PocPostReadOperation(
                     Status = FLT_POSTOP_FINISHED_PROCESSING;
                     goto EXIT;
                 }
-
             }
-
-
         }
         except(EXCEPTION_EXECUTE_HANDLER)
         {
@@ -590,13 +572,12 @@ PocPostReadOperation(
             goto EXIT;
         }
 
-
         Status = PocGetProcessName(Data, ProcessName);
 
         PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocPostReadOperation->Decrypt success. StartingVbo = %u Length = %u ProcessName = %s\n",
-            StartingVbo,
-            LengthReturned,
-            ProcessName));
+                                            StartingVbo,
+                                            LengthReturned,
+                                            ProcessName));
 
         if (NULL != StreamContext)
         {
@@ -615,8 +596,6 @@ PocPostReadOperation(
         {
             PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("%s, StreamContext = NULL\n", __FUNCTION__));
         }
-
-       
     }
 
     Status = FLT_POSTOP_FINISHED_PROCESSING;

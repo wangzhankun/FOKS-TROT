@@ -85,19 +85,19 @@ ULONG PocQueryEndOfFileInfo(
 		return 0;
 	}
 
-	return StandardInfo.EndOfFile.LowPart;
+	return StandardInfo.EndOfFile.LowPart;//FileInfo不可能超过4GB
 }
 
 
 NTSTATUS PocSetEndOfFileInfo(
 	IN PFLT_INSTANCE Instance, 
 	IN PFILE_OBJECT FileObject, 
-	IN ULONG FileSize)
+	IN LONGLONG FileSize)
 {
 	FILE_END_OF_FILE_INFORMATION EndOfFileInfo = { 0 };
 	NTSTATUS Status;
 
-	EndOfFileInfo.EndOfFile.LowPart = FileSize;
+	EndOfFileInfo.EndOfFile.QuadPart = FileSize;
 
 	Status = FltSetInformationFile(Instance, FileObject, &EndOfFileInfo, sizeof(FILE_END_OF_FILE_INFORMATION), FileEndOfFileInformation);
 
@@ -381,7 +381,7 @@ NTSTATUS PocGetVolumeInstance(
 	PFLT_VOLUME		pVolumeList[100];
 	ULONG			uRet;
 	UNICODE_STRING	uniName = { 0 };
-	ULONG 			index = 0;
+	LONGLONG 			index = 0;
 	WCHAR			wszNameBuffer[POC_MAX_NAME_LENGTH] = { 0 };
 
 	Status = FltEnumerateVolumes(pFilter,

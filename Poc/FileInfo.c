@@ -121,7 +121,7 @@ PocPostQueryInformationOperation(
     case FileStandardInformation:
     {
         PFILE_STANDARD_INFORMATION Info = (PFILE_STANDARD_INFORMATION)InfoBuffer;
-        Info->EndOfFile.LowPart = StreamContext->FileSize;
+        Info->EndOfFile.QuadPart = StreamContext->FileSize.QuadPart;
         break;
     }
     case FileAllInformation:
@@ -131,20 +131,20 @@ PocPostQueryInformationOperation(
             sizeof(FILE_BASIC_INFORMATION) +
             sizeof(FILE_STANDARD_INFORMATION))
         {
-            Info->StandardInformation.EndOfFile.LowPart = StreamContext->FileSize;
+            Info->StandardInformation.EndOfFile.QuadPart = StreamContext->FileSize.QuadPart;
         }
         break;
     }
     case FileEndOfFileInformation:
     {
         PFILE_END_OF_FILE_INFORMATION Info = (PFILE_END_OF_FILE_INFORMATION)InfoBuffer;
-        Info->EndOfFile.LowPart = StreamContext->FileSize;
+        Info->EndOfFile.QuadPart = StreamContext->FileSize.QuadPart;
         break;
     }
     case FileNetworkOpenInformation:
     {
         PFILE_NETWORK_OPEN_INFORMATION Info = (PFILE_NETWORK_OPEN_INFORMATION)InfoBuffer;
-        Info->EndOfFile.LowPart = StreamContext->FileSize;
+        Info->EndOfFile.QuadPart = StreamContext->FileSize.QuadPart;
         break;
     }
     default:
@@ -276,7 +276,7 @@ PocPostSetInformationOperation(
                 ExEnterCriticalRegionAndAcquireResourceExclusive(StreamContext->Resource);
 
                 StreamContext->IsCipherText = FALSE;
-                StreamContext->FileSize = 0;
+                StreamContext->FileSize.QuadPart = 0;
                 RtlZeroMemory(StreamContext->FileName, POC_MAX_NAME_LENGTH);
 
                 ExReleaseResourceAndLeaveCriticalRegion(StreamContext->Resource);

@@ -43,9 +43,9 @@ extern PFLT_FILTER gFilterHandle;
 
 #define PTDBG_TRACE_ROUTINES            0x00000001
 #define PTDBG_TRACE_OPERATION_STATUS    0x00000002
+#define LONGLONG2ULONG(x) ((ULONG)((ULONGLONG)(x) & 0xFFFFFFFF))
 
-
-const static ULONG gTraceFlags = 0x00000001;
+const static LONGLONG gTraceFlags = 0x00000001;
 
 #define PT_DBG_PRINT( _dbgLevel, _string )          \
     (FlagOn(gTraceFlags,(_dbgLevel)) ?              \

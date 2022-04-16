@@ -19,7 +19,7 @@ typedef struct _POC_ENCRYPTION_TAILER
 {
 	CHAR Flag[32];
 	WCHAR FileName[POC_MAX_NAME_LENGTH];
-	ULONG FileSize;
+	LONGLONG FileSize;
 	BOOLEAN IsCipherText;
 	CHAR EncryptionAlgorithmType[32];
 	CHAR KeyAndCiphertextHash[32];

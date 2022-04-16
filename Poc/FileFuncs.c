@@ -95,7 +95,7 @@ NTSTATUS PocReadFileNoCache(
 
     FileSize = PocQueryEndOfFileInfo(Instance, FileObject);
 
-    if (byteOffset.LowPart + readLength > FileSize)
+    if (byteOffset.QuadPart + readLength > FileSize)
     {
         PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("PocReadFileNoCache->End of File.\n"));
         Status = STATUS_END_OF_FILE;
@@ -103,7 +103,7 @@ NTSTATUS PocReadFileNoCache(
     }
 
     readLength = ROUND_TO_SIZE(readLength, VolumeContext->SectorSize);
-    byteOffset.LowPart = ROUND_TO_SIZE(byteOffset.LowPart, VolumeContext->SectorSize);
+    byteOffset.QuadPart = ROUND_TO_SIZE(byteOffset.QuadPart, VolumeContext->SectorSize);
 
     //FLTFL_IO_OPERATION_NON_CACHED
     //The ReadBuffer that the Buffer parameter points to must be aligned 
@@ -436,7 +436,7 @@ NTSTATUS PocCreateFileForEncTailer(
     }
 
     //PocReadFileNoCache里面会对ByteOffset对齐0x200
-    ByteOffset.LowPart = FileSize - PAGE_SIZE;
+    ByteOffset.QuadPart = FileSize - PAGE_SIZE;
 
 
     Status = PocReadFileNoCache(
@@ -487,9 +487,9 @@ NTSTATUS PocCreateFileForEncTailer(
 
         ExEnterCriticalRegionAndAcquireResourceExclusive(StreamContext->Resource);
 
-        if (0 == StreamContext->FileSize)
+        if (0 == StreamContext->FileSize.QuadPart)
         {
-            StreamContext->FileSize = ((PPOC_ENCRYPTION_TAILER)OutReadBuffer)->FileSize;
+            StreamContext->FileSize.QuadPart = ((PPOC_ENCRYPTION_TAILER)OutReadBuffer)->FileSize;
         }
         if (0 == StreamContext->IsCipherText)
         {
@@ -514,9 +514,9 @@ NTSTATUS PocCreateFileForEncTailer(
     {
         ExEnterCriticalRegionAndAcquireResourceExclusive(StreamContext->Resource);
 
-        if (0 == StreamContext->FileSize)
+        if (0 == StreamContext->FileSize.QuadPart)
         {
-            StreamContext->FileSize = ((PPOC_ENCRYPTION_TAILER)OutReadBuffer)->FileSize;
+            StreamContext->FileSize.QuadPart = ((PPOC_ENCRYPTION_TAILER)OutReadBuffer)->FileSize;
         }
         if (0 == StreamContext->IsCipherText)
         {
@@ -571,7 +571,7 @@ NTSTATUS PocAppendEncTailerToFile(
     PFILE_OBJECT FileObject = NULL;
     IO_STATUS_BLOCK IoStatusBlock = { 0 };
 
-    ULONG FileSize = 0;
+    LONGLONG FileSize = 0;
     LARGE_INTEGER ByteOffset = { 0 };
     ULONG WriteLength = 0;
     PCHAR WriteBuffer = NULL;
@@ -625,7 +625,7 @@ NTSTATUS PocAppendEncTailerToFile(
         ((PFSRTL_ADVANCED_FCB_HEADER)FileObject->FsContext)->PagingIoResource));*/
 
 
-    FileSize = StreamContext->FileSize;
+    FileSize = StreamContext->FileSize.QuadPart;
 
     WriteLength = ROUND_TO_SIZE(PAGE_SIZE, VolumeContext->SectorSize);
 
@@ -640,12 +640,12 @@ NTSTATUS PocAppendEncTailerToFile(
 
     RtlZeroMemory(WriteBuffer, WriteLength);
 
-    ByteOffset.LowPart = ROUND_TO_SIZE(FileSize, VolumeContext->SectorSize);
+    ByteOffset.QuadPart = ROUND_TO_SIZE(FileSize, VolumeContext->SectorSize);
 
 
     RtlMoveMemory(WriteBuffer, &EncryptionTailer, sizeof(POC_ENCRYPTION_TAILER));
 
-    ((PPOC_ENCRYPTION_TAILER)WriteBuffer)->FileSize = StreamContext->FileSize;;
+    ((PPOC_ENCRYPTION_TAILER)WriteBuffer)->FileSize = StreamContext->FileSize.QuadPart;
     ((PPOC_ENCRYPTION_TAILER)WriteBuffer)->IsCipherText = StreamContext->IsCipherText;
     RtlMoveMemory(((PPOC_ENCRYPTION_TAILER)WriteBuffer)->FileName, StreamContext->FileName, wcslen(StreamContext->FileName) * sizeof(WCHAR));
 
@@ -722,7 +722,7 @@ NTSTATUS PocAppendEncTailerToFileEx(
     PPOC_VOLUME_CONTEXT VolumeContext = NULL;
 
 
-    ULONG FileSize = 0;
+    LONGLONG FileSize = 0;
     LARGE_INTEGER ByteOffset = { 0 };
     ULONG WriteLength = 0;
     PCHAR WriteBuffer = NULL;
@@ -740,7 +740,7 @@ NTSTATUS PocAppendEncTailerToFileEx(
 
 
 
-    FileSize = StreamContext->FileSize;
+    FileSize = StreamContext->FileSize.QuadPart;
 
     WriteLength = ROUND_TO_SIZE(PAGE_SIZE, VolumeContext->SectorSize);
 
@@ -755,11 +755,11 @@ NTSTATUS PocAppendEncTailerToFileEx(
 
     RtlZeroMemory(WriteBuffer, WriteLength);
 
-    ByteOffset.LowPart = ROUND_TO_SIZE(FileSize, VolumeContext->SectorSize);
+    ByteOffset.QuadPart = ROUND_TO_SIZE(FileSize, VolumeContext->SectorSize);
 
     RtlMoveMemory(WriteBuffer, &EncryptionTailer, sizeof(POC_ENCRYPTION_TAILER));
 
-    ((PPOC_ENCRYPTION_TAILER)WriteBuffer)->FileSize = StreamContext->FileSize;;
+    ((PPOC_ENCRYPTION_TAILER)WriteBuffer)->FileSize = StreamContext->FileSize.QuadPart;;
     ((PPOC_ENCRYPTION_TAILER)WriteBuffer)->IsCipherText = StreamContext->IsCipherText;
     RtlMoveMemory(((PPOC_ENCRYPTION_TAILER)WriteBuffer)->FileName, StreamContext->FileName, wcslen(StreamContext->FileName) * sizeof(WCHAR));
 
@@ -1212,13 +1212,13 @@ NTSTATUS PocReentryToEncrypt(
         goto EXIT;
     }
 
-    PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("\n%s@%s@%d: %s->success. FileName = %ws FileSize = %u.\n",
+    PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("\n%s@%s@%d: %s->success. FileName = %ws FileSize = %lld.\n",
         __FUNCTION__,
         __FILE__,
         __LINE__,
         __FUNCTION__,
         FileName,
-        ((PFSRTL_ADVANCED_FCB_HEADER)(FileObject->FsContext))->FileSize.LowPart));
+        ((PFSRTL_ADVANCED_FCB_HEADER)(FileObject->FsContext))->FileSize.QuadPart));
 
 EXIT:
 
@@ -1353,7 +1353,7 @@ NTSTATUS PocReentryToDecrypt(
         goto EXIT;
     }
 
-    FileSize = StreamContext->FileSize;
+    FileSize = StreamContext->FileSize.LowPart;
 
     ReadBuffer = ExAllocatePoolWithTag(NonPagedPool, FileSize, READ_BUFFER_TAG);
 
@@ -1489,16 +1489,16 @@ NTSTATUS PocReentryToDecrypt(
     ExEnterCriticalRegionAndAcquireResourceExclusive(StreamContext->Resource);
 
     StreamContext->IsCipherText = FALSE;
-    StreamContext->FileSize = 0;
+    StreamContext->FileSize.QuadPart = 0;
     RtlZeroMemory(StreamContext->FileName, POC_MAX_NAME_LENGTH);
 
     ExReleaseResourceAndLeaveCriticalRegion(StreamContext->Resource);
     
 
-    PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("%s->success. FileName = %ws FileSize = %u.\n\n",
+    PT_DBG_PRINT(PTDBG_TRACE_ROUTINES, ("%s->success. FileName = %ws FileSize = %lld.\n\n",
         __FUNCTION__,
         FileName,
-        ((PFSRTL_ADVANCED_FCB_HEADER)(FileObject->FsContext))->FileSize.LowPart));
+        ((PFSRTL_ADVANCED_FCB_HEADER)(FileObject->FsContext))->FileSize.QuadPart));
 
 EXIT:
 

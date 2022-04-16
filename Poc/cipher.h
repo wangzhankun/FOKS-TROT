@@ -5,7 +5,7 @@
 
 #define AES_BLOCK_SIZE 16
 #define KEY_OBJECT_BUFFER 'koBF'
-
+//加解密的时候缓冲区的空间不会太大（不会超过4GB），因此用ULONG是合理的
 typedef struct AES_INIT_VARIABLES
 {
 	BCRYPT_ALG_HANDLE hAesAlg;
@@ -50,7 +50,7 @@ NTSTATUS PocStreamModeEncrypt(
 
 NTSTATUS PocStreamModeDecrypt(
 	IN PCHAR InBuffer,
-	IN ULONG InBufferSize,
+	IN LONGLONG InBufferSize,
 	IN OUT PCHAR InOutBuffer);
 
 NTSTATUS PocComputeHash(

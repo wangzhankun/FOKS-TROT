@@ -5,8 +5,12 @@
 
 typedef struct _POC_PAGE_TEMP_BUFFER
 {
-    ULONG StartingVbo;
-    ULONG ByteCount;
+    // LONGLONG StartingVbo;
+    LONGLONG StartingVbo;
+
+    // LONGLONG ByteCount;
+    LONGLONG ByteCount;
+
     PCHAR Buffer;
 
 }POC_PAGE_TEMP_BUFFER, * PPOC_PAGE_TEMP_BUFFER;
@@ -19,14 +23,16 @@ typedef struct _POC_PAGE_TEMP_BUFFER
 typedef struct _POC_STREAM_CONTEXT 
 {
 
-    ULONG Flag;
+    LONGLONG Flag;
     PWCHAR FileName;
     /*
     * FileSize中存着明文==密文大小，因为写进去的尾是NonCachedIo，所以有扇区对齐，不是紧接着密文写的
     * FileSize主要是用于隐藏尾部，在PostQueryInformation和PreRead，PostRead中使用
     * FileSize会在PostWrite中更新，并在PostClose中写进尾部，以便驱动启动后第一次打开文件时，从尾部中取出
     */
-    ULONG FileSize;
+    //LONGLONG FileSize;
+    LARGE_INTEGER FileSize;
+
 
     PSECTION_OBJECT_POINTERS OriginSectionObjectPointers;
     PSECTION_OBJECT_POINTERS ShadowSectionObjectPointers;
@@ -60,7 +66,7 @@ typedef struct _POC_VOLUME_CONTEXT
     //  Holds the sector size for this volume.
     //
 
-    ULONG SectorSize;
+    ULONG SectorSize;//每个sector的大小，不会溢出
 
 } POC_VOLUME_CONTEXT, * PPOC_VOLUME_CONTEXT;
 
@@ -101,5 +107,5 @@ NTSTATUS PocUpdateNameInStreamContext(
 
 VOID PocUpdateFlagInStreamContext(
     IN PPOC_STREAM_CONTEXT StreamContext,
-    IN ULONG Flag);
+    IN LONGLONG Flag);
 

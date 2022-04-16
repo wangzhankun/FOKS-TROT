@@ -30,7 +30,7 @@ VOID PocProcessCleanup();
 
 typedef struct _PEB_LDR_DATA
 {
-    ULONG Length;
+    LONGLONG Length;
     UCHAR Initialized;
     PVOID SsHandle;
     LIST_ENTRY InLoadOrderModuleList;
@@ -55,8 +55,8 @@ typedef struct _PEB
     PVOID IFEOKey;
     PVOID CrossProcessFlags;
     PVOID KernelCallbackTable;
-    ULONG SystemReserved;
-    ULONG AtlThunkSListPtr32;
+    LONGLONG SystemReserved;
+    LONGLONG AtlThunkSListPtr32;
     PVOID ApiSetMap;
 } PEB, * PPEB;
 
@@ -67,20 +67,20 @@ typedef struct _PEB32
     UCHAR ReadImageFileExecOptions;
     UCHAR BeingDebugged;
     UCHAR BitField;
-    ULONG Mutant;
-    ULONG ImageBaseAddress;
-    ULONG Ldr;
-    ULONG ProcessParameters;
-    ULONG SubSystemData;
-    ULONG ProcessHeap;
-    ULONG FastPebLock;
-    ULONG AtlThunkSListPtr;
-    ULONG IFEOKey;
-    ULONG CrossProcessFlags;
-    ULONG UserSharedInfoPtr;
-    ULONG SystemReserved;
-    ULONG AtlThunkSListPtr32;
-    ULONG ApiSetMap;
+    LONGLONG Mutant;
+    LONGLONG ImageBaseAddress;
+    LONGLONG Ldr;
+    LONGLONG ProcessParameters;
+    LONGLONG SubSystemData;
+    LONGLONG ProcessHeap;
+    LONGLONG FastPebLock;
+    LONGLONG AtlThunkSListPtr;
+    LONGLONG IFEOKey;
+    LONGLONG CrossProcessFlags;
+    LONGLONG UserSharedInfoPtr;
+    LONGLONG SystemReserved;
+    LONGLONG AtlThunkSListPtr32;
+    LONGLONG ApiSetMap;
 } PEB32, * PPEB32;
 
 typedef struct _IMAGE_SECTION_HEADER
@@ -88,17 +88,17 @@ typedef struct _IMAGE_SECTION_HEADER
     UCHAR  Name[8];
     union
     {
-        ULONG PhysicalAddress;
-        ULONG VirtualSize;
+        LONGLONG PhysicalAddress;
+        LONGLONG VirtualSize;
     } Misc;
-    ULONG VirtualAddress;
-    ULONG SizeOfRawData;
-    ULONG PointerToRawData;
-    ULONG PointerToRelocations;
-    ULONG PointerToLinenumbers;
+    LONGLONG VirtualAddress;
+    LONGLONG SizeOfRawData;
+    LONGLONG PointerToRawData;
+    LONGLONG PointerToRelocations;
+    LONGLONG PointerToLinenumbers;
     USHORT  NumberOfRelocations;
     USHORT  NumberOfLinenumbers;
-    ULONG Characteristics;
+    LONGLONG Characteristics;
 } IMAGE_SECTION_HEADER, * PIMAGE_SECTION_HEADER;
 
 #define IMAGE32(hdr) (hdr->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)

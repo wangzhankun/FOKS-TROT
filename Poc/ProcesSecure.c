@@ -40,7 +40,7 @@ NTSTATUS PocProcessIntegrityCheck(
 
 	PCHAR ProcessImage = NULL;
 	PIMAGE_NT_HEADERS pHeaders = NULL;
-	ULONG SizeOfProcessImage = 0;
+	LONGLONG SizeOfProcessImage = 0;
 
 	SIZE_T TextSectionVA = { 0 };
 	SIZE_T TextSectionSize = { 0 };
@@ -52,7 +52,7 @@ NTSTATUS PocProcessIntegrityCheck(
 	HANDLE hProcess = NULL;
 	ULONG OldProt = 0;
 
-	ULONG LengthReturned = 0;
+	ULONG LengthReturned = 0;//用于保存哈希的长度，不会溢出
 	PUCHAR Hash1 = NULL, Hash2 = NULL;
 
 
@@ -111,7 +111,7 @@ NTSTATUS PocProcessIntegrityCheck(
 
 	ProcessBuffer = ExAllocatePoolWithTag(
 		PagedPool,
-		FileStandInfo.EndOfFile.LowPart,
+		FileStandInfo.EndOfFile.QuadPart,
 		READ_BUFFER_TAG);
 
 	if (NULL == ProcessBuffer)
@@ -122,7 +122,7 @@ NTSTATUS PocProcessIntegrityCheck(
 		goto EXIT;
 	}
 
-	RtlZeroMemory(ProcessBuffer, FileStandInfo.EndOfFile.LowPart);
+	RtlZeroMemory(ProcessBuffer, FileStandInfo.EndOfFile.QuadPart);
 
 	ByteOffset.QuadPart = 0;
 	Status = ZwReadFile(
@@ -130,9 +130,9 @@ NTSTATUS PocProcessIntegrityCheck(
 		NULL, 
 		NULL, 
 		NULL,
-		&IoStatus,
-		ProcessBuffer,
-		(ULONG)FileStandInfo.EndOfFile.QuadPart,
+		&IoStatus,//[out] PIO_STATUS_BLOCK IoStatusBlock, Pointer to an IO_STATUS_BLOCK structure that receives the final completion status and information about the requested read operation.
+		ProcessBuffer,//[out] PVOID Buffer, Pointer to the buffer that receives the data read from a file.
+		(ULONG)FileStandInfo.EndOfFile.LowPart,//[in] ULONG Length, Specifies the number of bytes to read from the file.
 		&ByteOffset,
 		NULL);
 
@@ -200,7 +200,7 @@ NTSTATUS PocProcessIntegrityCheck(
 		if (!_strnicmp((PCHAR)pSection->Name, ".text", strlen(".text")))
 		{
 			TextSectionVA = pSection->VirtualAddress;
-			TextSectionSize = pSection->Misc.VirtualSize;
+			TextSectionSize = LONGLONG2ULONG(pSection->Misc.VirtualSize);
 		}
 
 		RtlCopyMemory(
@@ -988,11 +988,11 @@ NTSTATUS PocProcessInit()
 	NTSTATUS Status = 0;
 
 	PCHAR SystemInfomation = NULL;
-	ULONG SystemInformationLength = 0;
+	LONGLONG SystemInformationLength = 0;
 	ULONG ReturnedLength = 0;
 
 	PSYSTEM_PROCESS_INFORMATION ProcessInfo = NULL;
-	ULONG TotalOffset = 0;
+	LONGLONG TotalOffset = 0;
 
 	PEPROCESS EProcess = NULL;
 	PUNICODE_STRING uProcessName = NULL;
@@ -1046,7 +1046,7 @@ NTSTATUS PocProcessInit()
 	Status = NtQuerySystemInformation(
 		SystemProcessInformation, 
 		SystemInfomation, 
-		SystemInformationLength, 
+		LONGLONG2ULONG(SystemInformationLength), 
 		&ReturnedLength);
 
 	if (STATUS_SUCCESS != Status && STATUS_INFO_LENGTH_MISMATCH != Status)
@@ -1056,7 +1056,7 @@ NTSTATUS PocProcessInit()
 		goto EXIT;
 	}
 
-	SystemInformationLength = ReturnedLength * 2;
+	SystemInformationLength = (LONGLONG)(ReturnedLength) * 2;
 
 	SystemInfomation = ExAllocatePoolWithTag(
 		NonPagedPool,
@@ -1075,7 +1075,7 @@ NTSTATUS PocProcessInit()
 	Status = NtQuerySystemInformation(
 		SystemProcessInformation,
 		SystemInfomation,
-		SystemInformationLength,
+		LONGLONG2ULONG(SystemInformationLength),
 		&ReturnedLength);
 
 	if (STATUS_SUCCESS != Status)
@@ -1142,7 +1142,7 @@ NTSTATUS PocProcessInit()
 		OutProcessInfo->ProcessId = ProcessInfo->UniqueProcessId;
 
 		PT_DBG_PRINT(PTDBG_TRACE_ROUTINES,
-			("%s->Add ProcessName = %ws ProcessId = %I64d Access = %u success.\n",
+			("%s->Add ProcessName = %ws ProcessId = %lld Access = %lld success.\n",
 				__FUNCTION__,
 				uProcessName->Buffer,
 				(LONGLONG)ProcessInfo->UniqueProcessId,

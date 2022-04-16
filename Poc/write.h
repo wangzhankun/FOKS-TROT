@@ -8,7 +8,7 @@ typedef struct _POC_SWAP_BUFFER_CONTEXT
     PCHAR NewBuffer;
     PMDL NewMdl;
     PPOC_STREAM_CONTEXT StreamContext;
-    ULONG OriginalLength;
+    LONGLONG OriginalLength;
 
 }POC_SWAP_BUFFER_CONTEXT, * PPOC_SWAP_BUFFER_CONTEXT;
 

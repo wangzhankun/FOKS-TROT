@@ -6,7 +6,7 @@ typedef struct _POC_PROCESS_RULES
 {
 	LIST_ENTRY ListEntry;
 	PWCHAR ProcessName;
-	ULONG Access;
+	LONGLONG Access;
 
 	LIST_ENTRY PocCreatedProcessListHead;
 	KSPIN_LOCK PocCreatedProcessListSpinLock;
